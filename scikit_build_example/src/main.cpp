@@ -1,4 +1,5 @@
 #include <pybind11/pybind11.h>
+#include <matplot/matplot.h>
 
 #define STRINGIFY(x) #x
 #define MACRO_STRINGIFY(x) STRINGIFY(x)
