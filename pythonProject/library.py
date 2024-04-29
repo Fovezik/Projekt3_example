@@ -1,6 +1,7 @@
-import scikit_build_example
+import scikit_build_example as s
 
-print(scikit_build_example.add(1, 2))
-print(scikit_build_example.substract(1, 2))
-print(scikit_build_example.substract(5, 1))
+print(s.add(1, 2))
+print(s.substract(1, 2))
+print(s.substract(5, 1))
+s.sinus()
 
