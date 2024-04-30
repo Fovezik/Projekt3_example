@@ -15,12 +15,14 @@ find_package(Python REQUIRED COMPONENTS Interpreter Development.Module)
 
 add_subdirectory(pybind11)
 add_subdirectory(matplotplusplus)
+add_subdirectory(AudioFile)
 
 # Add a library using FindPython's tooling (pybind11 also provides a helper like
 # this)
 python_add_library(_core MODULE src/main.cpp WITH_SOABI)
 target_link_libraries(_core PRIVATE pybind11::headers)
 target_link_libraries(_core PUBLIC matplot)
+target_link_libraries(_core PUBLIC AudioFile)
 
 # This is passing in the version as a define just as an example
 target_compile_definitions(_core PRIVATE VERSION_INFO=${PROJECT_VERSION})
