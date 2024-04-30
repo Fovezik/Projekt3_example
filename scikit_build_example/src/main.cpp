@@ -7,10 +7,12 @@
 #define STRINGIFY(x) #x
 #define MACRO_STRINGIFY(x) STRINGIFY(x)
 
-using namespace std;
-
-int add(int i, int j) { return i + j; }
-int substract(int i, int j) { return i - j; }
+int add(int i, int j) {
+    return i + j; 
+}
+int subtract(int i, int j) { 
+    return i - j; 
+}
 
 namespace py = pybind11;
 
@@ -32,7 +34,7 @@ PYBIND11_MODULE(_core, m) {
         Add two numbers.
     )pbdoc");
 
-    m.def ("substract", &substract, R"pbdoc(
+    m.def ("subtract", &subtract, R"pbdoc(
         Substract two numbers.
     )pbdoc");
 
