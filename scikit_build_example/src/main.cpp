@@ -17,19 +17,23 @@ int subtract(int i, int j) {
 
 void loadAudioFileAndPrintSummary(std::string filePath) {
     
-    std::cout << "*********************************" << std::endl;
-    std::cout << "Load Audio File and Print Summary" << std::endl;
-    std::cout << "*********************************" << std::endl << std::endl;
+    std::cout << "X-----------------------------------X" << std::endl;
+    std::cout << "| Load Audio File and Print Summary |" << std::endl;
+    std::cout << "X-----------------------------------X" << std::endl << std::endl;
 
     AudioFile<float> a;
     bool loadedOK = a.load(filePath);
-    assert(loadedOK);
 
     if (loadedOK) {
         std::cout << "Sample Rate: " << a.getSampleRate() << std::endl;
         std::cout << "Number of samples per channel: " << a.getSampleRate() * a.getLengthInSeconds() << std::endl;
         std::cout << "Length in Seconds: " << a.getLengthInSeconds() << std::endl;
         std::cout << std::endl;
+    }
+    else { 
+        std::cout << "Audio File did not load correctly!" << std::endl << std::endl;
+        std::cout << "Curent path to audio file:" << std::endl;
+        std::cout << filePath << std::endl;
     }
 }
 
@@ -65,7 +69,6 @@ void show_audio(std::string filepath, int accuracy) {
     matplot::show();
 }
 
-
 void generate_and_show_sphere(int radius, int accuracy) {
 
     if (accuracy < 1 || accuracy > 10) {
@@ -90,6 +93,52 @@ void generate_and_show_sphere(int radius, int accuracy) {
     matplot::ylabel("y");
     matplot::zlabel("z");
     matplot::show();
+}
+
+void show_2d(std::vector<float> time, std::vector<float> wave) {
+    matplot::plot(time, wave);
+    matplot::title("Wave");
+    matplot::show();
+}
+
+void generate_wave(std::string choice, double frequency) {
+
+    int length = 628;
+    std::vector<float> time;
+    std::vector<float> wave;
+
+    if (choice == "sin") {
+        for (int i = 0; i < length; i++) {
+            time.push_back(static_cast<double>(i) / 0.01);
+            wave.push_back(std::sin(6.28 * frequency * time[i]));
+        }
+        show_2d(time, wave);
+        return;
+    }
+
+    if (choice == "cos") {
+        for (int i = 0; i < length; i++) {
+            time.push_back(static_cast<double>(i) / 0.01);
+            wave.push_back(std::cos(6.28 * frequency * time[i]));
+        }
+        show_2d(time, wave);
+        return;
+    }
+
+    if (choice == "square") {
+
+        show_2d(time, wave);
+        return;
+    }
+
+    if (choice == "sawtooth") {
+
+        show_2d(time, wave);
+        return;
+    }
+
+    std::cout << "There is no " << choice << " function avaible!" << std::endl;
+    system("pause");
 }
 
 namespace py = pybind11;
@@ -126,6 +175,10 @@ PYBIND11_MODULE(_core, m) {
 
     m.def("generate_sphere", &generate_and_show_sphere, R"pbdoc(
         Generate and show sphere.
+    )pbdoc");
+
+    m.def("generate_wave", &generate_wave, R"pbdoc(
+        Generate chosen wave.
     )pbdoc");
 
 #ifdef VERSION_INFO
