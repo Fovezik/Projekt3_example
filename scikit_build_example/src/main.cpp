@@ -1,6 +1,7 @@
 #include <pybind11/pybind11.h>
 #include <matplot/matplot.h>
 #include <AudioFile.h>
+#include <iostream>
 #include <cmath>
 #include <string>
 #include <vector>
@@ -95,44 +96,52 @@ void generate_and_show_sphere(int radius, int accuracy) {
     matplot::show();
 }
 
-void show_2d(std::vector<float> time, std::vector<float> wave) {
-    matplot::plot(time, wave);
-    matplot::title("Wave");
+void show_2d(std::vector<double> x, std::vector<double> y) {
+    matplot::plot(x, y);
+    matplot::title("Generated wave");
+    matplot::ylim({ -1.5, 1.5 });
     matplot::show();
 }
 
 void generate_wave(std::string choice, double frequency) {
 
-    int length = 628;
-    std::vector<float> time;
-    std::vector<float> wave;
+    double length = 628;
+    double pi = 3.14;
+    std::vector<double> time;
+    std::vector<double> wave;
 
-    if (choice == "sin") {
+    if (choice == "sine") {
         for (int i = 0; i < length; i++) {
-            time.push_back(static_cast<double>(i) / 0.01);
-            wave.push_back(std::sin(6.28 * frequency * time[i]));
+            time.push_back(static_cast<double>(i) / 314);
+            wave.push_back(std::sin(pi * frequency * time[i]));
         }
         show_2d(time, wave);
         return;
     }
 
-    if (choice == "cos") {
+    if (choice == "cosine") {
         for (int i = 0; i < length; i++) {
-            time.push_back(static_cast<double>(i) / 0.01);
-            wave.push_back(std::cos(6.28 * frequency * time[i]));
+            time.push_back(static_cast<double>(i) / 314);
+            wave.push_back(std::cos(pi * frequency * time[i]));
         }
         show_2d(time, wave);
         return;
     }
 
     if (choice == "square") {
-
+        for (int i = 0; i < length; i++) {
+            time.push_back(static_cast<double>(i) / 314);
+            wave.push_back((i % static_cast<int>(length / frequency) < (length / (2 * frequency))) ? 1 : -1);
+        }
         show_2d(time, wave);
         return;
     }
 
     if (choice == "sawtooth") {
-
+        for (int i = 0; i < length; i++) {
+            time.push_back(static_cast<double>(i) / 314);
+            wave.push_back(((i * frequency / length) - floor(i * frequency / length)) * 2 - 1);
+        }
         show_2d(time, wave);
         return;
     }
