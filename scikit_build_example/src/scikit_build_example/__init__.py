@@ -1,5 +1,5 @@
 from __future__ import annotations
 
-from ._core import __doc__, __version__, add, subtract, audio_test, show_audio, generate_sphere, generate_wave
+from ._core import __doc__, __version__, show_audio, generate_sphere, generate_wave
 
-__all__ = ["__doc__", "__version__", "add", "subtract", "audio_test", "show_audio", "generate_sphere", "generate_wave"]
+__all__ = ["__doc__", "__version__", "show_audio", "generate_sphere", "generate_wave"]

@@ -5,14 +5,10 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="c0b69021-a157-4674-9546-fd4e3bebd744" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/../scikit_build_example/src/.idea/.gitignore" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/../scikit_build_example/src/.idea/editor.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/../scikit_build_example/src/.idea/modules.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/../scikit_build_example/src/.idea/src.iml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/../scikit_build_example/src/.idea/vcs.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/.gitignore" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/.name" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/library.py" beforeDir="false" afterPath="$PROJECT_DIR$/library.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../scikit_build_example/src/main.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/../scikit_build_example/src/main.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../scikit_build_example/src/scikit_build_example/__init__.py" beforeDir="false" afterPath="$PROJECT_DIR$/../scikit_build_example/src/scikit_build_example/__init__.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -36,6 +32,7 @@
     "RunOnceActivity.ShowReadmeOnStart": "true",
     "git-widget-placeholder": "main",
     "ignore.virus.scanning.warn.message": "true",
+    "last_opened_file_path": "D:/Techniki_programowania/Projekt3_example/scikit_build_example/src/scikit_build_example/__init__.py",
     "node.js.detected.package.eslint": "true",
     "node.js.detected.package.tslint": "true",
     "node.js.selected.package.eslint": "(autodetect)",
@@ -62,6 +59,7 @@
       <updated>1714752907153</updated>
       <workItem from="1714752908095" duration="25000" />
       <workItem from="1714752963542" duration="885000" />
+      <workItem from="1714765122049" duration="2297000" />
     </task>
     <servers />
   </component>

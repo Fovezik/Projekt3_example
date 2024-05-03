@@ -9,34 +9,11 @@
 #define STRINGIFY(x) #x
 #define MACRO_STRINGIFY(x) STRINGIFY(x)
 
-int add(int i, int j) {
-    return i + j; 
-}
-int subtract(int i, int j) { 
-    return i - j; 
-}
+void show_audio(std::string filepath, int accuracy);
+void generate_and_show_sphere(int radius, int accuracy);
+void show_2d_wave(std::vector<double> x, std::vector<double> y);
+void generate_wave(std::string choice, double frequency);
 
-void loadAudioFileAndPrintSummary(std::string filePath) {
-    
-    std::cout << "X-----------------------------------X" << std::endl;
-    std::cout << "| Load Audio File and Print Summary |" << std::endl;
-    std::cout << "X-----------------------------------X" << std::endl << std::endl;
-
-    AudioFile<float> a;
-    bool loadedOK = a.load(filePath);
-
-    if (loadedOK) {
-        std::cout << "Sample Rate: " << a.getSampleRate() << std::endl;
-        std::cout << "Number of samples per channel: " << a.getSampleRate() * a.getLengthInSeconds() << std::endl;
-        std::cout << "Length in Seconds: " << a.getLengthInSeconds() << std::endl;
-        std::cout << std::endl;
-    }
-    else { 
-        std::cout << "Audio File did not load correctly!" << std::endl << std::endl;
-        std::cout << "Curent path to audio file:" << std::endl;
-        std::cout << filePath << std::endl;
-    }
-}
 
 void show_audio(std::string filepath, int accuracy) {
 
