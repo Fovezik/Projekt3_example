@@ -96,7 +96,7 @@ void generate_and_show_sphere(int radius, int accuracy) {
     matplot::show();
 }
 
-void show_2d(std::vector<double> x, std::vector<double> y) {
+void show_2d_wave(std::vector<double> x, std::vector<double> y) {
     matplot::plot(x, y);
     matplot::title("Generated wave");
     matplot::ylim({ -1.5, 1.5 });
@@ -115,7 +115,8 @@ void generate_wave(std::string choice, double frequency) {
             time.push_back(static_cast<double>(i) / 314);
             wave.push_back(std::sin(pi * frequency * time[i]));
         }
-        show_2d(time, wave);
+        std::cout << "Sine wave with frequency = " << frequency << " generated succesfully!" << std::endl;
+        show_2d_wave(time, wave);
         return;
     }
 
@@ -124,7 +125,8 @@ void generate_wave(std::string choice, double frequency) {
             time.push_back(static_cast<double>(i) / 314);
             wave.push_back(std::cos(pi * frequency * time[i]));
         }
-        show_2d(time, wave);
+        std::cout << "Cosine wave with frequency = " << frequency << " generated succesfully!" << std::endl;
+        show_2d_wave(time, wave);
         return;
     }
 
@@ -133,7 +135,8 @@ void generate_wave(std::string choice, double frequency) {
             time.push_back(static_cast<double>(i) / 314);
             wave.push_back((i % static_cast<int>(length / frequency) < (length / (2 * frequency))) ? 1 : -1);
         }
-        show_2d(time, wave);
+        std::cout << "Square wave with frequency = " << frequency << " generated succesfully!" << std::endl;
+        show_2d_wave(time, wave);
         return;
     }
 
@@ -142,11 +145,12 @@ void generate_wave(std::string choice, double frequency) {
             time.push_back(static_cast<double>(i) / 314);
             wave.push_back(((i * frequency / length) - floor(i * frequency / length)) * 2 - 1);
         }
-        show_2d(time, wave);
+        std::cout << "Sawtooth wave with frequency = " << frequency << " generated succesfully!" << std::endl;
+        show_2d_wave(time, wave);
         return;
     }
 
-    std::cout << "There is no " << choice << " function avaible!" << std::endl;
+    std::cout << "There is no " << choice << " wave avaible!" << std::endl;
     system("pause");
 }
 
