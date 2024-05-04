@@ -9,11 +9,16 @@
 #define STRINGIFY(x) #x
 #define MACRO_STRINGIFY(x) STRINGIFY(x)
 
-void show_audio(std::string filepath, int accuracy);
-void generate_and_show_sphere(int radius, int accuracy);
-void show_2d_wave(std::vector<double> x, std::vector<double> y);
-void generate_wave(std::string choice, double frequency);
+const double PI = 3.14;
 
+struct Wave {
+    std::vector<double> time;
+    std::vector<double> wave;
+};
+
+void show_audio(std::string filepath, int accuracy);
+void show_2d_wave(Wave generated_wave);
+Wave generate_wave(std::string choice, double frequency);
 
 void show_audio(std::string filepath, int accuracy) {
 
@@ -47,88 +52,71 @@ void show_audio(std::string filepath, int accuracy) {
     matplot::show();
 }
 
-void generate_and_show_sphere(int radius, int accuracy) {
-
-    if (accuracy < 1 || accuracy > 10) {
-        std::cout << "Incorrect accuracy!";
+void generate_and_show_wave(std::string choice, double frequency) {
+    Wave generated_wave = generate_wave(choice, frequency);
+    if (!generated_wave.time.empty() || !generated_wave.wave.empty()) {
+        matplot::plot(generated_wave.time, generated_wave.wave);
+        matplot::title("Generated wave");
+        matplot::ylim({ -1.5, 1.5 });
+        matplot::show();
+    }
+    else {
+        std::cout << "No " << choice << " wave avaible!" << std::endl;
         return;
     }
+}
 
-    std::vector<float> x, y, z;
-    float pi = 3.14;
+Wave generate_wave(std::string choice, double frequency) {
 
-    for (float p = 0.00; p < 2 * pi; p += (accuracy * 0.01)) {
-        for (float q = -0.50 * pi; q < 0.50 * pi; q += (accuracy * 0.01)) {
-            x.push_back(radius * cos(p) * cos(q));
-            y.push_back(radius * sin(p) * cos(q));
-            z.push_back(radius * sin(q));
-        }
+    Wave generated_wave;
+
+    if (frequency <= 0) {
+        std::cout << frequency << " is incorrect frequency!" << std::endl;
+        return generated_wave;
     }
+    
+    double length;
 
-    matplot::plot3(x, y, z);
-    matplot::title("Sphere");
-    matplot::xlabel("x");
-    matplot::ylabel("y");
-    matplot::zlabel("z");
-    matplot::show();
-}
-
-void show_2d_wave(std::vector<double> x, std::vector<double> y) {
-    matplot::plot(x, y);
-    matplot::title("Generated wave");
-    matplot::ylim({ -1.5, 1.5 });
-    matplot::show();
-}
-
-void generate_wave(std::string choice, double frequency) {
-
-    double length = 628;
-    double pi = 3.14;
-    std::vector<double> time;
-    std::vector<double> wave;
+    if (frequency < 1) { length = 628 * (1 / frequency); }
+    else { length = 628; }
 
     if (choice == "sine") {
         for (int i = 0; i < length; i++) {
-            time.push_back(static_cast<double>(i) / 314);
-            wave.push_back(std::sin(pi * frequency * time[i]));
+            generated_wave.time.push_back(static_cast<double>(i) / 314);
+            generated_wave.wave.push_back(std::sin(PI * frequency * generated_wave.time[i]));
         }
         std::cout << "Sine wave with frequency = " << frequency << " generated succesfully!" << std::endl;
-        show_2d_wave(time, wave);
-        return;
+        return generated_wave;
     }
 
     if (choice == "cosine") {
         for (int i = 0; i < length; i++) {
-            time.push_back(static_cast<double>(i) / 314);
-            wave.push_back(std::cos(pi * frequency * time[i]));
+            generated_wave.time.push_back(static_cast<double>(i) / 314);
+            generated_wave.wave.push_back(std::cos(PI * frequency * generated_wave.time[i]));
         }
         std::cout << "Cosine wave with frequency = " << frequency << " generated succesfully!" << std::endl;
-        show_2d_wave(time, wave);
-        return;
+        return generated_wave;
     }
 
     if (choice == "square") {
         for (int i = 0; i < length; i++) {
-            time.push_back(static_cast<double>(i) / 314);
-            wave.push_back((i % static_cast<int>(length / frequency) < (length / (2 * frequency))) ? 1 : -1);
+            generated_wave.time.push_back(static_cast<double>(i) / 314);
+            generated_wave.wave.push_back((i % static_cast<int>(628 / frequency) < (628 / (2 * frequency))) ? 1 : -1);
         }
         std::cout << "Square wave with frequency = " << frequency << " generated succesfully!" << std::endl;
-        show_2d_wave(time, wave);
-        return;
+        return generated_wave;
     }
 
     if (choice == "sawtooth") {
         for (int i = 0; i < length; i++) {
-            time.push_back(static_cast<double>(i) / 314);
-            wave.push_back(((i * frequency / length) - floor(i * frequency / length)) * 2 - 1);
+            generated_wave.time.push_back(static_cast<double>(i) / 314);
+            generated_wave.wave.push_back(((i * frequency / 628) - floor(i * frequency / 628)) * 2 - 1);
         }
         std::cout << "Sawtooth wave with frequency = " << frequency << " generated succesfully!" << std::endl;
-        show_2d_wave(time, wave);
-        return;
+        return generated_wave;
     }
 
-    std::cout << "There is no " << choice << " wave avaible!" << std::endl;
-    system("pause");
+    return generated_wave;
 }
 
 namespace py = pybind11;
@@ -147,28 +135,12 @@ PYBIND11_MODULE(_core, m) {
            subtract
     )pbdoc";
 
-    m.def("add", &add, R"pbdoc(
-        Add two numbers.
-    )pbdoc");
-
-    m.def ("subtract", &subtract, R"pbdoc(
-        Substract two numbers.
-    )pbdoc");
-
-    m.def("audio_test", &loadAudioFileAndPrintSummary, R"pbdoc(
-        Load Audio File and Print Summary.
-    )pbdoc");
-
     m.def("show_audio", &show_audio, R"pbdoc(
         Shows audio using matplot.
     )pbdoc");
 
-    m.def("generate_sphere", &generate_and_show_sphere, R"pbdoc(
-        Generate and show sphere.
-    )pbdoc");
-
-    m.def("generate_wave", &generate_wave, R"pbdoc(
-        Generate chosen wave.
+    m.def("generate_wave", &generate_and_show_wave, R"pbdoc(
+        Generate and show chosen wave.
     )pbdoc");
 
 #ifdef VERSION_INFO
