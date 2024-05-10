@@ -57,6 +57,8 @@ void generate_and_show_wave(std::string choice, double frequency) {
     if (!generated_wave.time.empty() || !generated_wave.wave.empty()) {
         matplot::plot(generated_wave.time, generated_wave.wave);
         matplot::title("Generated wave");
+        matplot::xlabel("Preiod (pi)");
+        matplot::ylabel("Amplitude");
         matplot::ylim({ -1.5, 1.5 });
         matplot::show();
     }
