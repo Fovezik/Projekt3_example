@@ -1,4 +1,5 @@
 #include <pybind11/pybind11.h>
+#include <pybind11/stl.h>
 #include <matplot/matplot.h>
 #include <AudioFile.h>
 #include <iostream>
@@ -121,29 +122,18 @@ Wave generate_wave(std::string choice, double frequency) {
     return generated_wave;
 }
 
+void plot_line(const std::vector<double>& x, const std::vector<double>& y) {
+    matplot::plot(x, y);
+    matplot::show();
+}
+
 namespace py = pybind11;
 
 PYBIND11_MODULE(_core, m) {
-    m.doc() = R"pbdoc(
-        Pybind11 example plugin
-        -----------------------
 
-        .. currentmodule:: scikit_build_example
-
-        .. autosummary::
-           :toctree: _generate
-
-           add
-           subtract
-    )pbdoc";
-
-    m.def("show_audio", &show_audio, R"pbdoc(
-        Shows audio using matplot.
-    )pbdoc");
-
-    m.def("generate_wave", &generate_and_show_wave, R"pbdoc(
-        Generate and show chosen wave.
-    )pbdoc");
+    m.def("show_audio", &show_audio, "Shows audio using matplot");
+    m.def("generate_wave", &generate_and_show_wave, "Generate and show chosen wave");
+    m.def("plot_line", &plot_line, "A function that plots a line using Matplot++", py::arg("x"), py::arg("y"));
 
 #ifdef VERSION_INFO
     m.attr("__version__") = MACRO_STRINGIFY(VERSION_INFO);
