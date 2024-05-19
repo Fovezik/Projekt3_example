@@ -4,6 +4,7 @@
 #include <matplot/matplot.h>
 #include <AudioFile.h>
 #include <iostream>
+#include <fstream>
 #include <cmath>
 #include <string>
 #include <vector>
@@ -19,6 +20,7 @@ class Wave {
     public:
         std::vector<double> time;
         std::vector<double> wave;
+        int sample_rate;
 };
 
 Wave read_audio(std::string filepath, int accuracy) {
@@ -34,17 +36,43 @@ Wave read_audio(std::string filepath, int accuracy) {
     a.load(filepath);
 
     std::vector<double> audio_data = a.samples[0];
-    int sample_rate = a.getSampleRate();
+    audio.sample_rate = a.getSampleRate();
 
     for (int i = 0; i < audio_data.size(); i += (accuracy * 10)) {
-        audio.time.push_back(static_cast<double>(i) / sample_rate);
+        audio.time.push_back(static_cast<double>(i) / audio.sample_rate);
     }
 
     for (int i = 0; i < audio.time.size(); i++) {
-        audio.wave.push_back(audio_data[static_cast<int>(audio.time[i] * sample_rate)]);
+        audio.wave.push_back(audio_data[static_cast<int>(audio.time[i] * audio.sample_rate)]);
     }
     
     std::cout << "Audio file: " << filepath << " readed succesfully!" << std::endl;
+    return audio;
+}
+
+Wave lowpass_filter(Wave audio) {
+
+    double nyquist_freq = audio.sample_rate / 2;
+    double cutoff_freq = 5000;
+    double normalized_cutoff_freq = cutoff_freq / nyquist_freq;
+
+    int order = 4;
+    std::vector<double> b(order + 1), a(order + 1);
+    double wn = tan(PI * normalized_cutoff_freq);
+    double k = 1.0 / (1.0 + sqrt(2.0) * wn + pow(wn, 2));
+    a[0] = pow(wn, 2) * k;
+    a[1] = 2 * a[0];
+    a[2] = a[0];
+    b[0] = k;
+    b[2] = -k;
+    
+    audio.wave[0] = b[0] * audio.wave[0];
+    audio.wave[1] = b[0] * audio.wave[1] + b[1] * audio.wave[0] - a[1] * audio.wave[0];
+    for (size_t n = 2; n < audio.wave.size(); ++n) {
+        audio.wave[n] = b[0] * audio.wave[n] + b[1] * audio.wave[n - 1] + b[2] * audio.wave[n - 2]
+            - a[1] * audio.wave[n - 1] - a[2] * audio.wave[n - 2];
+    }
+
     return audio;
 }
 
@@ -109,130 +137,29 @@ void plot_line(const std::vector<double>& x, const std::vector<double>& y) {
     matplot::show();
 }
 
-std::vector<std::vector<std::vector<float>>> convolve(
-    const std::vector<std::vector<std::vector<float>>>& input,
-    const std::vector<std::vector<std::vector<std::vector<float>>>>& kernel,
-    int H, int W, int C, int h, int w, int OC) {
-
-    int output_height = H - h + 1;
-    int output_width = W - w + 1;
-
-    std::vector<std::vector<std::vector<float>>> output(output_height, std::vector<std::vector<float>>(output_width, std::vector<float>(OC, 0)));
-
-    for (int oh = 0; oh < output_height; ++oh) {
-        for (int ow = 0; ow < output_width; ++ow) {
-            for (int oc = 0; oc < OC; ++oc) {
-                float sum = 0.0f;
-                for (int kh = 0; kh < h; ++kh) {
-                    for (int kw = 0; kw < w; ++kw) {
-                        for (int c = 0; c < C; ++c) {
-                            sum += input[oh + kh][ow + kw][c] * kernel[kh][kw][c][oc];
-                        }
-                    }
-                }
-                output[oh][ow][oc] = sum;
-            }
-        }
-    }
-
-    return output;
-}
-
-py::array_t<float> convolve_wrapper(py::array_t<float> input, py::array_t<float> kernel) {
-    py::buffer_info input_info = input.request();
-    py::buffer_info kernel_info = kernel.request();
-
-    if (input_info.ndim != 3 || kernel_info.ndim != 4) {
-        throw std::runtime_error("Input should be 3D and kernel should be 4D.");
-    }
-
-    int H = input_info.shape[0];
-    int W = input_info.shape[1];
-    int C = input_info.shape[2];
-    int h = kernel_info.shape[0];
-    int w = kernel_info.shape[1];
-    int kernel_C = kernel_info.shape[2];
-    int OC = kernel_info.shape[3];
-
-    if (C != kernel_C) {
-        throw std::runtime_error("Number of input channels must match.");
-    }
-
-    auto input_ptr = static_cast<float*>(input_info.ptr);
-    auto kernel_ptr = static_cast<float*>(kernel_info.ptr);
-
-    std::vector<std::vector<std::vector<float>>> input_vec(H, std::vector<std::vector<float>>(W, std::vector<float>(C)));
-    std::vector<std::vector<std::vector<std::vector<float>>>> kernel_vec(h, std::vector<std::vector<std::vector<float>>>(w, std::vector<std::vector<float>>(C, std::vector<float>(OC))));
-
-    // Convert input numpy array to vector
-    for (int i = 0; i < H; ++i) {
-        for (int j = 0; j < W; ++j) {
-            for (int k = 0; k < C; ++k) {
-                input_vec[i][j][k] = input_ptr[i * W * C + j * C + k];
-            }
-        }
-    }
-
-    // Convert kernel numpy array to vector
-    for (int i = 0; i < h; ++i) {
-        for (int j = 0; j < w; ++j) {
-            for (int k = 0; k < C; ++k) {
-                for (int l = 0; l < OC; ++l) {
-                    kernel_vec[i][j][k][l] = kernel_ptr[i * w * C * OC + j * C * OC + k * OC + l];
-                }
-            }
-        }
-    }
-
-    // Perform convolution
-    std::vector<std::vector<std::vector<float>>> output_vec = convolve(input_vec, kernel_vec, H, W, C, h, w, OC);
-
-    int output_height = H - h + 1;
-    int output_width = W - w + 1;
-
-    // Convert output vector to numpy array
-    py::array_t<float> output = py::array_t<float>({ output_height, output_width, OC });
-    py::buffer_info output_info = output.request();
-    auto output_ptr = static_cast<float*>(output_info.ptr);
-
-    for (int i = 0; i < output_height; ++i) {
-        for (int j = 0; j < output_width; ++j) {
-            for (int k = 0; k < OC; ++k) {
-                output_ptr[i * output_width * OC + j * OC + k] = output_vec[i][j][k];
-            }
-        }
-    }
-
-    return output;
-}
-
-// Function to create a Gaussian kernel
-std::vector<std::vector<float>> create_gaussian_kernel(int kernel_size, float sigma) {
-    int half_size = kernel_size / 2;
+std::vector<std::vector<float>> create_gaussian_kernel(float sigma) {
     float sum = 0.0;
-    std::vector<std::vector<float>> kernel(kernel_size, std::vector<float>(kernel_size));
+    std::vector<std::vector<float>> kernel(5, std::vector<float>(5));
 
-    for (int i = -half_size; i <= half_size; ++i) {
-        for (int j = -half_size; j <= half_size; ++j) {
+    for (int i = -2; i <= 2; i++) {
+        for (int j = -2; j <= 2; j++) {
             float value = std::exp(-(i * i + j * j) / (2 * sigma * sigma)) / (2 * PI * sigma * sigma);
-            kernel[i + half_size][j + half_size] = value;
+            kernel[i + 2][j + 2] = value;
             sum += value;
         }
     }
 
-    // Normalize the kernel
-    for (int i = 0; i < kernel_size; ++i) {
-        for (int j = 0; j < kernel_size; ++j) {
+    for (int i = 0; i < 5; ++i) {
+        for (int j = 0; j < 5; ++j) {
             kernel[i][j] /= sum;
         }
     }
 
     return kernel;
 }
+ 
+py::array_t<uint8_t> gaussian_filter(py::array_t<uint8_t> input, float sigma) {
 
-// Function to apply the Gaussian filter to an image
-py::array_t<uint8_t> gaussian_filter(py::array_t<uint8_t> input, int kernel_size, float sigma) {
-    // Get input buffer info
     auto buf = input.request();
     if (buf.ndim != 3) {
         throw std::runtime_error("Input should be a 3D NumPy array");
@@ -242,27 +169,23 @@ py::array_t<uint8_t> gaussian_filter(py::array_t<uint8_t> input, int kernel_size
     int width = buf.shape[1];
     int channels = buf.shape[2];
 
-    // Create the Gaussian kernel
-    auto kernel = create_gaussian_kernel(kernel_size, sigma);
-    int half_size = kernel_size / 2;
+    auto kernel = create_gaussian_kernel(sigma);
 
-    // Prepare the output array
     py::array_t<uint8_t> output({ height, width, channels });
     auto output_buf = output.request();
 
     uint8_t* input_ptr = static_cast<uint8_t*>(buf.ptr);
     uint8_t* output_ptr = static_cast<uint8_t*>(output_buf.ptr);
 
-    // Apply the Gaussian filter
     for (int h = 0; h < height; ++h) {
         for (int w = 0; w < width; ++w) {
             for (int c = 0; c < channels; ++c) {
                 float sum = 0.0;
-                for (int i = -half_size; i <= half_size; ++i) {
-                    for (int j = -half_size; j <= half_size; ++j) {
+                for (int i = -2; i <= 2; ++i) {
+                    for (int j = -2; j <= 2; ++j) {
                         int x = std::min(std::max(w + j, 0), width - 1);
                         int y = std::min(std::max(h + i, 0), height - 1);
-                        sum += input_ptr[(y * width + x) * channels + c] * kernel[i + half_size][j + half_size];
+                        sum += input_ptr[(y * width + x) * channels + c] * kernel[i + 2][j + 2];
                     }
                 }
                 output_ptr[(h * width + w) * channels + c] = std::min(std::max(static_cast<int>(sum), 0), 255);
@@ -273,6 +196,40 @@ py::array_t<uint8_t> gaussian_filter(py::array_t<uint8_t> input, int kernel_size
     return output;
 }
 
+py::array_t<uint8_t> grayscale(py::array_t<uint8_t> input) {
+ 
+    auto buf = input.request();
+    if (buf.ndim != 3 || buf.shape[2] != 3) {
+        throw std::runtime_error("Input should have shape (height, width, 3)");
+    }
+
+    size_t height = buf.shape[0];
+    size_t width = buf.shape[1];
+
+    auto result = py::array_t<uint8_t>({ height, width });
+    auto result_buf = result.request();
+
+    uint8_t* input_ptr = static_cast<uint8_t*>(buf.ptr);
+    uint8_t* result_ptr = static_cast<uint8_t*>(result_buf.ptr);
+
+    for (size_t i = 0; i < height; ++i) {
+        for (size_t j = 0; j < width; ++j) {
+
+            size_t index = i * width * 3 + j * 3;
+
+            uint8_t r = input_ptr[index];
+            uint8_t g = input_ptr[index + 1];
+            uint8_t b = input_ptr[index + 2];
+
+            uint8_t gray = static_cast<uint8_t>(0.299 * r + 0.587 * g + 0.114 * b);
+
+            result_ptr[i * width + j] = gray;
+        }
+    }
+
+    return result;
+}
+
 namespace py = pybind11;
 
 PYBIND11_MODULE(_core, m) {
@@ -280,15 +237,17 @@ PYBIND11_MODULE(_core, m) {
     py::class_<Wave>(m, "Wave")
         .def(py::init<>())
         .def_readwrite("time", &Wave::time)
-        .def_readwrite("wave", &Wave::wave);
+        .def_readwrite("wave", &Wave::wave)
+        .def_readwrite("sample_rate", &Wave::sample_rate);
 
     m.def("read_audio", &read_audio, "Reads audio into waveform");
     m.def("generate_wave", &generate_wave, "Generate chosen wave");
+    m.def("lowpass_filter", &lowpass_filter, "Cut-offs all frequencies above 5kHz");
     m.def("plot_line", &plot_line, "A function that plots a line using Matplot++",
         py::arg("x"), py::arg("y"));
-    m.def("convolve", &convolve_wrapper, "Apply 2D convolution to an image");
     m.def("gaussian_filter", &gaussian_filter, "Apply a Gaussian filter to an image",
-        py::arg("input"), py::arg("kernel_size"), py::arg("sigma"));
+        py::arg("input"), py::arg("sigma"));
+    m.def("grayscale", &grayscale, "Convert RGB image to Grayscale");
 
 #ifdef VERSION_INFO
     m.attr("__version__") = MACRO_STRINGIFY(VERSION_INFO);
