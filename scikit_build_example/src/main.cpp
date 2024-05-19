@@ -44,6 +44,7 @@ Wave read_audio(std::string filepath, int accuracy) {
         audio.wave.push_back(audio_data[static_cast<int>(audio.time[i] * sample_rate)]);
     }
     
+    std::cout << "Audio file: " << filepath << " readed succesfully!" << std::endl;
     return audio;
 }
 
@@ -205,6 +206,73 @@ py::array_t<float> convolve_wrapper(py::array_t<float> input, py::array_t<float>
     return output;
 }
 
+// Function to create a Gaussian kernel
+std::vector<std::vector<float>> create_gaussian_kernel(int kernel_size, float sigma) {
+    int half_size = kernel_size / 2;
+    float sum = 0.0;
+    std::vector<std::vector<float>> kernel(kernel_size, std::vector<float>(kernel_size));
+
+    for (int i = -half_size; i <= half_size; ++i) {
+        for (int j = -half_size; j <= half_size; ++j) {
+            float value = std::exp(-(i * i + j * j) / (2 * sigma * sigma)) / (2 * PI * sigma * sigma);
+            kernel[i + half_size][j + half_size] = value;
+            sum += value;
+        }
+    }
+
+    // Normalize the kernel
+    for (int i = 0; i < kernel_size; ++i) {
+        for (int j = 0; j < kernel_size; ++j) {
+            kernel[i][j] /= sum;
+        }
+    }
+
+    return kernel;
+}
+
+// Function to apply the Gaussian filter to an image
+py::array_t<uint8_t> gaussian_filter(py::array_t<uint8_t> input, int kernel_size, float sigma) {
+    // Get input buffer info
+    auto buf = input.request();
+    if (buf.ndim != 3) {
+        throw std::runtime_error("Input should be a 3D NumPy array");
+    }
+
+    int height = buf.shape[0];
+    int width = buf.shape[1];
+    int channels = buf.shape[2];
+
+    // Create the Gaussian kernel
+    auto kernel = create_gaussian_kernel(kernel_size, sigma);
+    int half_size = kernel_size / 2;
+
+    // Prepare the output array
+    py::array_t<uint8_t> output({ height, width, channels });
+    auto output_buf = output.request();
+
+    uint8_t* input_ptr = static_cast<uint8_t*>(buf.ptr);
+    uint8_t* output_ptr = static_cast<uint8_t*>(output_buf.ptr);
+
+    // Apply the Gaussian filter
+    for (int h = 0; h < height; ++h) {
+        for (int w = 0; w < width; ++w) {
+            for (int c = 0; c < channels; ++c) {
+                float sum = 0.0;
+                for (int i = -half_size; i <= half_size; ++i) {
+                    for (int j = -half_size; j <= half_size; ++j) {
+                        int x = std::min(std::max(w + j, 0), width - 1);
+                        int y = std::min(std::max(h + i, 0), height - 1);
+                        sum += input_ptr[(y * width + x) * channels + c] * kernel[i + half_size][j + half_size];
+                    }
+                }
+                output_ptr[(h * width + w) * channels + c] = std::min(std::max(static_cast<int>(sum), 0), 255);
+            }
+        }
+    }
+
+    return output;
+}
+
 namespace py = pybind11;
 
 PYBIND11_MODULE(_core, m) {
@@ -216,8 +284,11 @@ PYBIND11_MODULE(_core, m) {
 
     m.def("read_audio", &read_audio, "Reads audio into waveform");
     m.def("generate_wave", &generate_wave, "Generate chosen wave");
-    m.def("plot_line", &plot_line, "A function that plots a line using Matplot++", py::arg("x"), py::arg("y"));
+    m.def("plot_line", &plot_line, "A function that plots a line using Matplot++",
+        py::arg("x"), py::arg("y"));
     m.def("convolve", &convolve_wrapper, "Apply 2D convolution to an image");
+    m.def("gaussian_filter", &gaussian_filter, "Apply a Gaussian filter to an image",
+        py::arg("input"), py::arg("kernel_size"), py::arg("sigma"));
 
 #ifdef VERSION_INFO
     m.attr("__version__") = MACRO_STRINGIFY(VERSION_INFO);
