@@ -24,14 +24,9 @@ class Wave {
         int sample_rate;
 };
 
-Wave read_audio(std::string filepath, int accuracy) {
+Wave read_audio(std::string filepath) {
 
     Wave audio;
-
-    if (accuracy < 1 || accuracy > 10) {
-        std::cout << "Incorrect accuracy!";
-        return audio;
-    }
 
     AudioFile<double> a;
     a.load(filepath);
@@ -39,7 +34,7 @@ Wave read_audio(std::string filepath, int accuracy) {
     std::vector<double> audio_data = a.samples[0];
     audio.sample_rate = a.getSampleRate();
 
-    for (int i = 0; i < audio_data.size(); i += (accuracy * 10)) {
+    for (int i = 0; i < audio_data.size(); i++) {
         audio.time.push_back(static_cast<double>(i) / audio.sample_rate);
     }
 
@@ -52,7 +47,7 @@ Wave read_audio(std::string filepath, int accuracy) {
     return audio;
 }
 
-Wave lowpass_filter(Wave audio, double cutoff_freq) {
+Wave lowpass_filter(Wave& audio, double cutoff_freq) {
 
     Wave filtered_audio;
 
@@ -60,26 +55,34 @@ Wave lowpass_filter(Wave audio, double cutoff_freq) {
     filtered_audio.sample_rate = audio.sample_rate;
     filtered_audio.wave.resize(audio.wave.size());
 
-    double nyquist_freq = filtered_audio.sample_rate / 2;
-    double normalized_cutoff_freq = cutoff_freq / nyquist_freq;
+    double wc = 2.0 * PI * cutoff_freq / filtered_audio.sample_rate;
+    double alpha = sin(wc) / (2.0 * cos(wc));
+    double b0 = (1.0 - cos(wc)) / 2.0;
+    double b1 = 1.0 - cos(wc);
+    double b2 = (1.0 - cos(wc)) / 2.0;
+    double a0 = 1.0 + alpha;
+    double a1 = -2.0 * cos(wc);
+    double a2 = 1.0 - alpha;
 
-    std::vector<double> b(3), a(3);
-    double wn = tan(PI * normalized_cutoff_freq);
-    double k = 1 / (1 + sqrt(2) * wn + wn * wn);
-    b[0] = k;
-    b[1] = 2 * k;
-    b[2] = k;
-    a[0] = 1;
-    a[1] = 2 * (wn * wn - 1) * k;
-    a[2] = (1 - sqrt(2) * wn + wn * wn) * k;
-    
-    filtered_audio.wave[0] = b[0] * audio.wave[0];
-    filtered_audio.wave[1] = b[0] * audio.wave[1] + b[1] * audio.wave[0] - a[1] * filtered_audio.wave[0];
+    double x1 = 0.0, x2 = 0.0, y1 = 0.0, y2 = 0.0;
 
-    for (int n = 2; n < audio.wave.size(); n++) {
-        filtered_audio.wave[n] = b[0] * audio.wave[n] + b[1] * audio.wave[n - 1] + b[2] * audio.wave[n - 2]
-            - a[1] * filtered_audio.wave[n - 1] - a[2] * filtered_audio.wave[n - 2];
+    for (int i = 0; i < audio.wave.size(); i++) {
+        double x0 = audio.wave[i];
+        double y0 = (b0 / a0) * x0 + (b1 / a0) * x1 + (b2 / a0) * x2 - (a1 / a0) * y1 - (a2 / a0) * y2;
+        x2 = x1;
+        x1 = x0;
+        y2 = y1;
+        y1 = y0;
+        filtered_audio.wave[i] = y0;
     }
+
+    AudioFile<double> a;
+    a.setNumChannels(2);
+    a.setNumSamplesPerChannel(filtered_audio.sample_rate);
+    for (int channel = 0; channel < a.getNumChannels(); channel++) {
+        a.samples[channel] = filtered_audio.wave;
+    }
+    a.save("outputs\\test-audio-filtered.wav", AudioFileFormat::Wave);
 
     return filtered_audio;
 }
@@ -164,8 +167,8 @@ py::array_t<int> gaussian_filter(py::array_t<int> input, float sigma) {
         }
     }
 
-    for (int i = 0; i < 5; ++i) {
-        for (int j = 0; j < 5; ++j) {
+    for (int i = 0; i < 5; i++) {
+        for (int j = 0; j < 5; j++) {
             kernel[i][j] /= sum;
         }
     }
@@ -176,12 +179,12 @@ py::array_t<int> gaussian_filter(py::array_t<int> input, float sigma) {
     int* input_ptr = static_cast<int*>(buf.ptr);
     int* output_ptr = static_cast<int*>(output_buf.ptr);
 
-    for (int h = 0; h < height; ++h) {
-        for (int w = 0; w < width; ++w) {
-            for (int c = 0; c < channels; ++c) {
+    for (int h = 0; h < height; h++) {
+        for (int w = 0; w < width; w++) {
+            for (int c = 0; c < channels; c++) {
                 float sum2 = 0.0;
-                for (int i = -2; i <= 2; ++i) {
-                    for (int j = -2; j <= 2; ++j) {
+                for (int i = -2; i <= 2; i++) {
+                    for (int j = -2; j <= 2; j++) {
                         int x = std::min(std::max(w + j, 0), width - 1);
                         int y = std::min(std::max(h + i, 0), height - 1);
                         sum2 += input_ptr[(y * width + x) * channels + c] * kernel[i + 2][j + 2];
