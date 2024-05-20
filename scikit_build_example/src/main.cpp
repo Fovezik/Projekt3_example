@@ -13,6 +13,7 @@
 #define MACRO_STRINGIFY(x) STRINGIFY(x)
 
 namespace py = pybind11;
+namespace mp = matplot;
 
 const double PI = 3.14;
 
@@ -47,33 +48,40 @@ Wave read_audio(std::string filepath, int accuracy) {
     }
     
     std::cout << "Audio file: " << filepath << " readed succesfully!" << std::endl;
+
     return audio;
 }
 
-Wave lowpass_filter(Wave audio) {
+Wave lowpass_filter(Wave audio, double cutoff_freq) {
 
-    double nyquist_freq = audio.sample_rate / 2;
-    double cutoff_freq = 5000;
+    Wave filtered_audio;
+
+    filtered_audio.time = audio.time;
+    filtered_audio.sample_rate = audio.sample_rate;
+    filtered_audio.wave.resize(audio.wave.size());
+
+    double nyquist_freq = filtered_audio.sample_rate / 2;
     double normalized_cutoff_freq = cutoff_freq / nyquist_freq;
 
-    int order = 4;
-    std::vector<double> b(order + 1), a(order + 1);
+    std::vector<double> b(3), a(3);
     double wn = tan(PI * normalized_cutoff_freq);
-    double k = 1.0 / (1.0 + sqrt(2.0) * wn + pow(wn, 2));
-    a[0] = pow(wn, 2) * k;
-    a[1] = 2 * a[0];
-    a[2] = a[0];
+    double k = 1 / (1 + sqrt(2) * wn + wn * wn);
     b[0] = k;
-    b[2] = -k;
+    b[1] = 2 * k;
+    b[2] = k;
+    a[0] = 1;
+    a[1] = 2 * (wn * wn - 1) * k;
+    a[2] = (1 - sqrt(2) * wn + wn * wn) * k;
     
-    audio.wave[0] = b[0] * audio.wave[0];
-    audio.wave[1] = b[0] * audio.wave[1] + b[1] * audio.wave[0] - a[1] * audio.wave[0];
-    for (size_t n = 2; n < audio.wave.size(); ++n) {
-        audio.wave[n] = b[0] * audio.wave[n] + b[1] * audio.wave[n - 1] + b[2] * audio.wave[n - 2]
-            - a[1] * audio.wave[n - 1] - a[2] * audio.wave[n - 2];
+    filtered_audio.wave[0] = b[0] * audio.wave[0];
+    filtered_audio.wave[1] = b[0] * audio.wave[1] + b[1] * audio.wave[0] - a[1] * filtered_audio.wave[0];
+
+    for (int n = 2; n < audio.wave.size(); n++) {
+        filtered_audio.wave[n] = b[0] * audio.wave[n] + b[1] * audio.wave[n - 1] + b[2] * audio.wave[n - 2]
+            - a[1] * filtered_audio.wave[n - 1] - a[2] * filtered_audio.wave[n - 2];
     }
 
-    return audio;
+    return filtered_audio;
 }
 
 Wave generate_wave(std::string choice, double frequency) {
@@ -87,8 +95,8 @@ Wave generate_wave(std::string choice, double frequency) {
     
     double length;
 
-    if (frequency < 1) { length = 628 * (1 / frequency); }
-    else { length = 628; }
+    if (frequency < 1) length = 628 * (1 / frequency);
+    else length = 628;
 
     if (choice == "sine") {
         for (int i = 0; i < length; i++) {
@@ -133,11 +141,18 @@ Wave generate_wave(std::string choice, double frequency) {
 
 void plot_line(const std::vector<double>& x, const std::vector<double>& y) {
     if (x.empty() || y.empty()) return;
-    matplot::plot(x, y);
-    matplot::show();
+    mp::plot(x, y);
+    mp::show();
 }
+ 
+py::array_t<int> gaussian_filter(py::array_t<int> input, float sigma) {
 
-std::vector<std::vector<float>> create_gaussian_kernel(float sigma) {
+    auto buf = input.request();
+
+    int height = buf.shape[0];
+    int width = buf.shape[1];
+    int channels = buf.shape[2];
+
     float sum = 0.0;
     std::vector<std::vector<float>> kernel(5, std::vector<float>(5));
 
@@ -155,40 +170,24 @@ std::vector<std::vector<float>> create_gaussian_kernel(float sigma) {
         }
     }
 
-    return kernel;
-}
- 
-py::array_t<uint8_t> gaussian_filter(py::array_t<uint8_t> input, float sigma) {
-
-    auto buf = input.request();
-    if (buf.ndim != 3) {
-        throw std::runtime_error("Input should be a 3D NumPy array");
-    }
-
-    int height = buf.shape[0];
-    int width = buf.shape[1];
-    int channels = buf.shape[2];
-
-    auto kernel = create_gaussian_kernel(sigma);
-
-    py::array_t<uint8_t> output({ height, width, channels });
+    py::array_t<int> output({ height, width, channels });
     auto output_buf = output.request();
 
-    uint8_t* input_ptr = static_cast<uint8_t*>(buf.ptr);
-    uint8_t* output_ptr = static_cast<uint8_t*>(output_buf.ptr);
+    int* input_ptr = static_cast<int*>(buf.ptr);
+    int* output_ptr = static_cast<int*>(output_buf.ptr);
 
     for (int h = 0; h < height; ++h) {
         for (int w = 0; w < width; ++w) {
             for (int c = 0; c < channels; ++c) {
-                float sum = 0.0;
+                float sum2 = 0.0;
                 for (int i = -2; i <= 2; ++i) {
                     for (int j = -2; j <= 2; ++j) {
                         int x = std::min(std::max(w + j, 0), width - 1);
                         int y = std::min(std::max(h + i, 0), height - 1);
-                        sum += input_ptr[(y * width + x) * channels + c] * kernel[i + 2][j + 2];
+                        sum2 += input_ptr[(y * width + x) * channels + c] * kernel[i + 2][j + 2];
                     }
                 }
-                output_ptr[(h * width + w) * channels + c] = std::min(std::max(static_cast<int>(sum), 0), 255);
+                output_ptr[(h * width + w) * channels + c] = std::min(std::max(static_cast<int>(sum2), 0), 255);
             }
         }
     }
@@ -196,38 +195,35 @@ py::array_t<uint8_t> gaussian_filter(py::array_t<uint8_t> input, float sigma) {
     return output;
 }
 
-py::array_t<uint8_t> grayscale(py::array_t<uint8_t> input) {
+py::array_t<int> grayscale(py::array_t<int> input) {
  
     auto buf = input.request();
-    if (buf.ndim != 3 || buf.shape[2] != 3) {
-        throw std::runtime_error("Input should have shape (height, width, 3)");
-    }
 
-    size_t height = buf.shape[0];
-    size_t width = buf.shape[1];
+    int height = buf.shape[0];
+    int width = buf.shape[1];
 
-    auto result = py::array_t<uint8_t>({ height, width });
-    auto result_buf = result.request();
+    auto output = py::array_t<int>({ height, width });
+    auto output_buf = output.request();
 
-    uint8_t* input_ptr = static_cast<uint8_t*>(buf.ptr);
-    uint8_t* result_ptr = static_cast<uint8_t*>(result_buf.ptr);
+    int* input_ptr = static_cast<int*>(buf.ptr);
+    int* output_ptr = static_cast<int*>(output_buf.ptr);
 
-    for (size_t i = 0; i < height; ++i) {
-        for (size_t j = 0; j < width; ++j) {
+    for (int i = 0; i < height; ++i) {
+        for (int j = 0; j < width; ++j) {
 
-            size_t index = i * width * 3 + j * 3;
+            int index = i * width * 3 + j * 3;
 
-            uint8_t r = input_ptr[index];
-            uint8_t g = input_ptr[index + 1];
-            uint8_t b = input_ptr[index + 2];
+            int r = input_ptr[index];
+            int g = input_ptr[index + 1];
+            int b = input_ptr[index + 2];
 
-            uint8_t gray = static_cast<uint8_t>(0.299 * r + 0.587 * g + 0.114 * b);
+            int gray = static_cast<int>(0.299 * r + 0.587 * g + 0.114 * b);
 
-            result_ptr[i * width + j] = gray;
+            output_ptr[i * width + j] = gray;
         }
     }
 
-    return result;
+    return output;
 }
 
 namespace py = pybind11;
@@ -242,7 +238,7 @@ PYBIND11_MODULE(_core, m) {
 
     m.def("read_audio", &read_audio, "Reads audio into waveform");
     m.def("generate_wave", &generate_wave, "Generate chosen wave");
-    m.def("lowpass_filter", &lowpass_filter, "Cut-offs all frequencies above 5kHz");
+    m.def("lowpass_filter", &lowpass_filter, "Cuts off all frequencies above 5kHz");
     m.def("plot_line", &plot_line, "A function that plots a line using Matplot++",
         py::arg("x"), py::arg("y"));
     m.def("gaussian_filter", &gaussian_filter, "Apply a Gaussian filter to an image",
