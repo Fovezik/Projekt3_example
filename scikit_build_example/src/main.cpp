@@ -79,8 +79,8 @@ Wave lowpass_filter(Wave& audio, double cutoff_freq) {
     AudioFile<double> a;
     a.setNumChannels(2);
     a.setNumSamplesPerChannel(filtered_audio.sample_rate);
-    for (int channel = 0; channel < a.getNumChannels(); channel++) {
-        a.samples[channel] = filtered_audio.wave;
+    for (int i = 0; i < a.getNumChannels(); i++) {
+        a.samples[i] = filtered_audio.wave;
     }
     a.save("outputs\\test-audio-filtered.wav", AudioFileFormat::Wave);
 
@@ -211,8 +211,8 @@ py::array_t<int> grayscale(py::array_t<int> input) {
     int* input_ptr = static_cast<int*>(buf.ptr);
     int* output_ptr = static_cast<int*>(output_buf.ptr);
 
-    for (int i = 0; i < height; ++i) {
-        for (int j = 0; j < width; ++j) {
+    for (int i = 0; i < height; i++) {
+        for (int j = 0; j < width; j++) {
 
             int index = i * width * 3 + j * 3;
 
@@ -229,8 +229,6 @@ py::array_t<int> grayscale(py::array_t<int> input) {
     return output;
 }
 
-namespace py = pybind11;
-
 PYBIND11_MODULE(_core, m) {
 
     py::class_<Wave>(m, "Wave")
@@ -241,7 +239,7 @@ PYBIND11_MODULE(_core, m) {
 
     m.def("read_audio", &read_audio, "Reads audio into waveform");
     m.def("generate_wave", &generate_wave, "Generate chosen wave");
-    m.def("lowpass_filter", &lowpass_filter, "Cuts off all frequencies above 5kHz");
+    m.def("lowpass_filter", &lowpass_filter, "Cuts off all frequencies above given cut-off frequency");
     m.def("plot_line", &plot_line, "A function that plots a line using Matplot++",
         py::arg("x"), py::arg("y"));
     m.def("gaussian_filter", &gaussian_filter, "Apply a Gaussian filter to an image",
